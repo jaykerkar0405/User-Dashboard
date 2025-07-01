@@ -260,7 +260,7 @@ const Dashboard = () => {
           </div>
         ) : (
           <>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight capitalize">
               Welcome back, {userDetails.user_name}
             </h1>
             <p className="text-muted-foreground">
