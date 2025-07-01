@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/auth";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,12 +40,14 @@ export type UserDetails = {
 };
 
 const Header = () => {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { user, userDetails, logout, isAuthenticated } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
   const handleLogout = () => {
     logout();
+    router.push("/");
   };
 
   const getInitials = (name: string) => {
