@@ -29,6 +29,7 @@ type AuthContextType = {
   logout: () => void;
   isAuthenticated: boolean;
   userDetails: UserDetails | null;
+  refreshUserDetails: () => Promise<void>;
   login: (
     userId: string,
     password: string
@@ -51,8 +52,11 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
+const LOCAL_STORAGE_USER_KEY = "user_data";
 const SESSION_STORAGE_KEY = "session_token";
 const SESSION_DURATION = 24 * 60 * 60 * 1000;
+const DETAILS_REFRESH_INTERVAL = 30 * 60 * 1000;
+const LOCAL_STORAGE_USER_DETAILS_KEY = "user_details";
 
 const getCookie = (name: string): string | null => {
   if (typeof document === "undefined") return null;
@@ -98,20 +102,101 @@ const setSessionData = (token: string): void => {
   sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
 };
 
-const clearSessionData = (): void => {
+const getUserFromLocalStorage = (): User | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const userData = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
+    if (!userData) return null;
+
+    const parsed = JSON.parse(userData);
+    const now = Date.now();
+
+    if (now - parsed.timestamp > SESSION_DURATION) {
+      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+      return null;
+    }
+
+    return parsed.user;
+  } catch {
+    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+    return null;
+  }
+};
+
+const setUserToLocalStorage = (user: User): void => {
+  if (typeof window === "undefined") return;
+
+  const userData = {
+    user,
+    timestamp: Date.now(),
+  };
+
+  localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(userData));
+};
+
+const getUserDetailsFromLocalStorage = (): {
+  userDetails: UserDetails;
+  shouldRefresh: boolean;
+} | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const userDetailsData = localStorage.getItem(
+      LOCAL_STORAGE_USER_DETAILS_KEY
+    );
+    if (!userDetailsData) return null;
+
+    const parsed = JSON.parse(userDetailsData);
+    const now = Date.now();
+
+    if (now - parsed.timestamp > SESSION_DURATION) {
+      localStorage.removeItem(LOCAL_STORAGE_USER_DETAILS_KEY);
+      return null;
+    }
+
+    const shouldRefresh = now - parsed.timestamp > DETAILS_REFRESH_INTERVAL;
+
+    return {
+      userDetails: parsed.userDetails,
+      shouldRefresh,
+    };
+  } catch {
+    localStorage.removeItem(LOCAL_STORAGE_USER_DETAILS_KEY);
+    return null;
+  }
+};
+
+const setUserDetailsToLocalStorage = (userDetails: UserDetails): void => {
+  if (typeof window === "undefined") return;
+
+  const userDetailsData = {
+    userDetails,
+    timestamp: Date.now(),
+  };
+
+  localStorage.setItem(
+    LOCAL_STORAGE_USER_DETAILS_KEY,
+    JSON.stringify(userDetailsData)
+  );
+};
+
+const clearAllStorageData = (): void => {
   if (typeof window === "undefined") return;
 
   sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+  localStorage.removeItem(LOCAL_STORAGE_USER_DETAILS_KEY);
   document.cookie =
     "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   const fetchUserDetails = async (
     userId: string
@@ -149,28 +234,70 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const checkAuthStatus = async () => {
-      const authToken = getCookie("auth-token");
-      const sessionData = getSessionData();
+      try {
+        const storedUser = getUserFromLocalStorage();
+        const storedDetailsResult = getUserDetailsFromLocalStorage();
 
-      if (authToken && sessionData) {
-        try {
-          const userData = { user_id: sessionData.token };
-          setUser(userData);
+        if (storedUser) {
+          setUser(storedUser);
 
-          const details = await fetchUserDetails(sessionData.token);
-          if (details) {
-            setUserDetails(details);
+          if (storedDetailsResult) {
+            const { userDetails: storedUserDetails, shouldRefresh } =
+              storedDetailsResult;
+
+            setUserDetails(storedUserDetails);
+
+            if (shouldRefresh) {
+              try {
+                const freshDetails = await fetchUserDetails(storedUser.user_id);
+                if (
+                  freshDetails &&
+                  JSON.stringify(storedUserDetails) !==
+                    JSON.stringify(freshDetails)
+                ) {
+                  setUserDetails(freshDetails);
+                  setUserDetailsToLocalStorage(freshDetails);
+                  toast.info("Your profile information has been updated");
+                }
+              } catch (error) {
+                console.error("Background refresh failed:", error);
+              }
+            }
+          } else {
+            const details = await fetchUserDetails(storedUser.user_id);
+            if (details) {
+              setUserDetails(details);
+              setUserDetailsToLocalStorage(details);
+            }
           }
-        } catch (error) {
-          console.error("Failed to restore session:", error);
-          clearSessionData();
-        }
-      } else {
-        clearSessionData();
-      }
 
-      setIsLoading(false);
-      setIsInitialized(true);
+          setSessionData(storedUser.user_id);
+          document.cookie = `auth-token=${storedUser.user_id}; path=/; max-age=86400; samesite=strict; secure`;
+        } else {
+          const authToken = getCookie("auth-token");
+          const sessionData = getSessionData();
+
+          if (authToken && sessionData) {
+            const userData = { user_id: sessionData.token };
+            setUser(userData);
+            setUserToLocalStorage(userData);
+
+            const details = await fetchUserDetails(sessionData.token);
+            if (details) {
+              setUserDetails(details);
+              setUserDetailsToLocalStorage(details);
+            }
+          } else {
+            clearAllStorageData();
+          }
+        }
+      } catch (error) {
+        console.error("Failed to restore session:", error);
+        clearAllStorageData();
+      } finally {
+        setIsLoading(false);
+        setIsInitialized(true);
+      }
     };
 
     checkAuthStatus();
@@ -208,11 +335,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(user);
 
           setSessionData(userData.user_id);
+          setUserToLocalStorage(user);
           document.cookie = `auth-token=${userData.user_id}; path=/; max-age=86400; samesite=strict; secure`;
 
           const details = await fetchUserDetails(userData.user_id);
           if (details) {
             setUserDetails(details);
+            setUserDetailsToLocalStorage(details);
           }
 
           setTimeout(() => {
@@ -251,10 +380,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUserDetails = async (): Promise<void> => {
+    if (!user?.user_id) return;
+
+    try {
+      const freshDetails = await fetchUserDetails(user.user_id);
+      if (freshDetails) {
+        setUserDetails(freshDetails);
+        setUserDetailsToLocalStorage(freshDetails);
+        toast.success("Profile updated successfully");
+      }
+    } catch (error) {
+      console.error("Failed to refresh user details:", error);
+      toast.error("Failed to update profile");
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setUserDetails(null);
-    clearSessionData();
+    clearAllStorageData();
     toast.success("Logged out successfully");
     router.push("/");
   };
@@ -265,6 +410,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     isLoading,
     userDetails,
+    refreshUserDetails,
     isAuthenticated: !!user,
   };
 
