@@ -88,6 +88,27 @@ const Dashboard = () => {
     },
   } satisfies ChartConfig;
 
+  const getColorBasedOnValue = (
+    value: number,
+    minValue: number,
+    maxValue: number
+  ) => {
+    if (minValue === maxValue) {
+      return "hsl(137, 70%, 48%)";
+    }
+
+    const normalizedValue = (value - minValue) / (maxValue - minValue);
+
+    const hue = 137;
+    const saturation = 70;
+    const minLightness = 30;
+    const maxLightness = 70;
+    const lightness =
+      minLightness + normalizedValue * (maxLightness - minLightness);
+
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  };
+
   const fetchCustomers = async () => {
     setIsLoading(true);
 
@@ -160,13 +181,23 @@ const Dashboard = () => {
       if (Array.isArray(data) && data.length >= 2 && data[0] === true) {
         const [, spendingArray] = data;
         if (Array.isArray(spendingArray)) {
+          const spendingValues = spendingArray.map(
+            (item: MonthlySpending) => item.total_spent
+          );
+          const minSpending = Math.min(...spendingValues);
+          const maxSpending = Math.max(...spendingValues);
+
           const formattedData: ChartData[] = spendingArray.map(
-            (item: MonthlySpending, index: number) => ({
+            (item: MonthlySpending) => ({
               month: new Date(item.month + "-01").toLocaleDateString("en-US", {
                 month: "short",
               }),
               spending: item.total_spent,
-              fill: `var(--chart-${(index % 5) + 1})`,
+              fill: getColorBasedOnValue(
+                item.total_spent,
+                minSpending,
+                maxSpending
+              ),
               isSelected: false,
             })
           );
@@ -217,7 +248,6 @@ const Dashboard = () => {
       const updatedData = originalChartData.map((item) => ({
         ...item,
         isSelected: false,
-        fill: `var(--chart-${(originalChartData.indexOf(item) % 5) + 1})`,
       }));
       setChartData(updatedData);
 
@@ -230,10 +260,7 @@ const Dashboard = () => {
       const updatedData = originalChartData.map((item) => ({
         ...item,
         isSelected: item.month === month,
-        fill:
-          item.month === month
-            ? `var(--chart-${(originalChartData.indexOf(item) % 5) + 1})`
-            : "hsl(var(--muted))",
+        fill: item.month === month ? item.fill : "hsl(var(--muted))",
       }));
       setChartData(updatedData);
 
