@@ -163,7 +163,9 @@ const Header = () => {
             src="/logo.png"
             className="size-8 rounded-sm"
           />
-          <span className="text-xl font-bold">EBT Dashboard</span>
+          <span className="text-xl">
+            <span className="font-bold">EBT</span> Dashboard
+          </span>
         </Link>
 
         <div className="flex items-center space-x-4">
