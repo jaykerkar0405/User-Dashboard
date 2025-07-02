@@ -99,8 +99,8 @@ const Dashboard = () => {
 
     const normalizedValue = (value - minValue) / (maxValue - minValue);
 
-    const hue = 262;
-    const saturation = 70;
+    const hue = 223;
+    const saturation = 72;
     const minLightness = 35;
     const maxLightness = 75;
     const lightness =
