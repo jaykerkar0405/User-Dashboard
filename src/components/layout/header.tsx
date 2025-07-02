@@ -157,7 +157,7 @@ const Header = () => {
           <div className="size-9 bg-primary/40 rounded-lg flex items-center justify-center">
             <LayoutDashboard className="size-5.5" />
           </div>
-          <span className="text-xl font-bold">User Dashboard</span>
+          <span className="text-xl font-bold">EBT Dashboard</span>
         </Link>
 
         <div className="flex items-center space-x-4">
