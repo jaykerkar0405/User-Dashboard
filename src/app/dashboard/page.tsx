@@ -1,6 +1,13 @@
 "use client";
 
 import {
+  Users,
+  TrendingUp,
+  AlertCircle,
+  CalendarDays,
+  CalendarClock,
+} from "lucide-react";
+import {
   Select,
   SelectItem,
   SelectValue,
@@ -17,8 +24,8 @@ import {
 } from "@/components/ui/card";
 import {
   ChartConfig,
-  ChartContainer,
   ChartTooltip,
+  ChartContainer,
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { toast } from "sonner";
@@ -27,13 +34,6 @@ import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Customer } from "@/components/layout/header";
 import { Bar, BarChart, CartesianGrid, Rectangle, XAxis } from "recharts";
-import {
-  Users,
-  TrendingUp,
-  CalendarDays,
-  CalendarClock,
-  AlertCircle,
-} from "lucide-react";
 
 type MonthlySpending = {
   month: string;
@@ -53,12 +53,12 @@ const Dashboard = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [chartError, setChartError] = useState<boolean>(false);
   const [totalSpending, setTotalSpending] = useState<number>(0);
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [originalChartData, setOriginalChartData] = useState<ChartData[]>([]);
-  const [chartError, setChartError] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>(
     new Date().getFullYear().toString()
   );
@@ -94,15 +94,15 @@ const Dashboard = () => {
     maxValue: number
   ) => {
     if (minValue === maxValue) {
-      return "hsl(137, 70%, 48%)";
+      return "hsl(var(--chart-1))";
     }
 
     const normalizedValue = (value - minValue) / (maxValue - minValue);
 
-    const hue = 137;
+    const hue = 262;
     const saturation = 70;
-    const minLightness = 30;
-    const maxLightness = 70;
+    const minLightness = 35;
+    const maxLightness = 75;
     const lightness =
       minLightness + normalizedValue * (maxLightness - minLightness);
 
@@ -159,7 +159,7 @@ const Dashboard = () => {
     if (!customerId || !year) return;
 
     setIsChartLoading(true);
-    setChartError("");
+    setChartError(false);
 
     try {
       const response = await fetch(
@@ -217,7 +217,7 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error("Error fetching customer spending:", error);
-      setChartError("Failed to load spending data for this customer");
+      setChartError(true);
       setChartData([]);
       setOriginalChartData([]);
       setTotalSpending(0);
@@ -229,13 +229,13 @@ const Dashboard = () => {
 
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomer(customerId);
-    setChartError("");
+    setChartError(false);
     fetchCustomerSpending(customerId, selectedYear);
   };
 
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
-    setChartError("");
+    setChartError(false);
     if (selectedCustomer) {
       fetchCustomerSpending(selectedCustomer, year);
     }
@@ -288,7 +288,7 @@ const Dashboard = () => {
         ) : (
           <>
             <h1 className="text-3xl font-bold tracking-tight capitalize">
-              Welcome back, {userDetails.user_name}
+              Welcome, {userDetails.user_name}
             </h1>
             <p className="text-muted-foreground">
               Here&apos;s an overview of your customer data
@@ -481,7 +481,7 @@ const Dashboard = () => {
                     />
                     <ChartTooltip
                       cursor={false}
-                      content={<ChartTooltipContent />}
+                      content={<ChartTooltipContent valueIcon="$" />}
                     />
                     <Bar
                       radius={8}
