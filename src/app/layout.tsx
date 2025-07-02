@@ -13,7 +13,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "User Dashboard",
+  title: "EBT Dashboard",
 };
 
 const RootLayout = ({

@@ -1,15 +1,12 @@
 {
   "private": true,
   "version": "1.0.0",
-  "name": "user-dashboard",
+  "name": "ebt-dashboard",
   "scripts": {
     "lint": "next lint",
     "start": "next start",
     "build": "next build",
     "dev": "next dev --turbopack"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",

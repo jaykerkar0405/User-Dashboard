@@ -401,6 +401,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUserDetails(null);
     clearAllStorageData();
     toast.success("Logged out successfully");
+    router.push("/");
   };
 
   const value: AuthContextType = {

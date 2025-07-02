@@ -10,7 +10,7 @@ const Footer = () => {
             href="/"
             className="transition-colors underline-offset-10 hover:underline focus:underline font-semibold outline-none focus-visible:ring-2 focus-visible:ring-accent/70 rounded-sm duration-200"
           >
-            User Dashboard
+            EBT Dashboard
           </Link>
           . All rights reserved.
         </span>
