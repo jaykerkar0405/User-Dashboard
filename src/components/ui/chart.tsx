@@ -267,7 +267,12 @@ function ChartTooltipContent({
                     {item.value && (
                       <span className="text-foreground font-mono font-medium tabular-nums">
                         {valueIcon}
-                        {item.value.toLocaleString()}
+                        {item.value != null && !isNaN(Number(item.value))
+                          ? Number(item.value).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })
+                          : "-"}
                       </span>
                     )}
                   </div>
