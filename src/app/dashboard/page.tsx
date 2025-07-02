@@ -1,3 +1,7 @@
+/**
+ * Dashboard Page Component
+ * Displays customer spending data with interactive charts and filters
+ */
 "use client";
 
 import {
@@ -35,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Customer } from "@/components/layout/header";
 import { Bar, BarChart, CartesianGrid, Rectangle, XAxis } from "recharts";
 
+// Type definitions for data structures
 type MonthlySpending = {
   month: string;
   total_spent: number;
@@ -49,7 +54,10 @@ type ChartData = {
 };
 
 const Dashboard = () => {
+  // Authentication and user context
   const { user, userDetails } = useAuth();
+  
+  // State management for customer data and UI
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [chartData, setChartData] = useState<ChartData[]>([]);
@@ -63,6 +71,7 @@ const Dashboard = () => {
     new Date().getFullYear().toString()
   );
 
+  // Options for year and month selection
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
 

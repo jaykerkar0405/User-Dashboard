@@ -1,3 +1,7 @@
+/**
+ * Root Layout Component
+ * Provides the base structure and providers for the entire application
+ */
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -7,15 +11,21 @@ import Footer from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
+// Configure Inter font with Latin subset
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
 
+// Metadata configuration for the application
 export const metadata: Metadata = {
   title: "EBT Dashboard",
 };
 
+/**
+ * RootLayout Component
+ * Wraps the application with necessary providers and layout components
+ */
 const RootLayout = ({
   children,
 }: Readonly<{

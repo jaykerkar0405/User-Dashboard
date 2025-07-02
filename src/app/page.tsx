@@ -1,3 +1,7 @@
+/**
+ * Home/Login Page Component
+ * Provides user authentication interface with form validation and feedback
+ */
 "use client";
 
 import { useState } from "react";
@@ -8,12 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, User, Lock, ChevronRight, Loader2 } from "lucide-react";
 
+// Type definition for login form data
 type LoginForm = {
   username: string;
   password: string;
 };
 
+/**
+ * LoginForm Component
+ * Handles user authentication with input validation and loading states
+ */
 const LoginForm = () => {
+  // Form state management
   const [formData, setFormData] = useState<LoginForm>({
     username: "",
     password: "",
@@ -21,6 +31,7 @@ const LoginForm = () => {
   const { login, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
+  // Input change handler
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setFormData((prev) => ({
@@ -29,6 +40,7 @@ const LoginForm = () => {
     }));
   };
 
+  // Form submission handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 

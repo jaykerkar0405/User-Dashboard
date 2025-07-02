@@ -1,16 +1,21 @@
+/**
+ * Authentication Context Provider and Hook
+ * Manages user authentication state, session handling, and user details
+ */
 "use client";
 
-import React, {
+import {
+  createContext,
+  useContext,
   useState,
   useEffect,
-  ReactNode,
-  useContext,
-  createContext,
+  type ReactNode,
 } from "react";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
+// Type definitions for user and authentication data
 type User = {
   user_id: string;
 };
@@ -23,6 +28,7 @@ type UserDetails = {
   user_email: string;
 };
 
+// Type definition for the Auth Context
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
@@ -54,8 +60,8 @@ type AuthProviderProps = {
 
 const LOCAL_STORAGE_USER_KEY = "user_data";
 const SESSION_STORAGE_KEY = "session_token";
-const SESSION_DURATION = 24 * 60 * 60 * 1000;
-const DETAILS_REFRESH_INTERVAL = 30 * 60 * 1000;
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const DETAILS_REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
 const LOCAL_STORAGE_USER_DETAILS_KEY = "user_details";
 
 const getCookie = (name: string): string | null => {
