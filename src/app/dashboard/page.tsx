@@ -5,7 +5,9 @@
 "use client";
 
 import {
+  Zap,
   Users,
+  DollarSign,
   TrendingUp,
   AlertCircle,
   CalendarDays,
@@ -56,7 +58,7 @@ type ChartData = {
 const Dashboard = () => {
   // Authentication and user context
   const { user, userDetails } = useAuth();
-  
+
   // State management for customer data and UI
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -66,6 +68,8 @@ const Dashboard = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+  const [isLoadingTotal, setIsLoadingTotal] = useState<boolean>(false);
+  const [customerTotalSpent, setCustomerTotalSpent] = useState<number>(0);
   const [originalChartData, setOriginalChartData] = useState<ChartData[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>(
     new Date().getFullYear().toString()
@@ -116,6 +120,41 @@ const Dashboard = () => {
       minLightness + normalizedValue * (maxLightness - minLightness);
 
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  };
+
+  const fetchCustomerTotal = async (customerId: string) => {
+    if (!customerId) return;
+
+    setIsLoadingTotal(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/total/customer/${customerId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch customer total");
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data) && data.length >= 2 && data[0] === true) {
+        const [, totalArray] = data;
+        if (Array.isArray(totalArray) && totalArray.length > 0) {
+          setCustomerTotalSpent(totalArray[0].total_spent);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching customer total:", error);
+      setCustomerTotalSpent(0);
+    } finally {
+      setIsLoadingTotal(false);
+    }
   };
 
   const fetchCustomers = async () => {
@@ -239,6 +278,7 @@ const Dashboard = () => {
   const handleCustomerChange = (customerId: string) => {
     setSelectedCustomer(customerId);
     setChartError(false);
+    fetchCustomerTotal(customerId);
     fetchCustomerSpending(customerId, selectedYear);
   };
 
@@ -306,7 +346,7 @@ const Dashboard = () => {
         )}
       </div>
 
-      <Card>
+      <Card className="mb-8">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -369,188 +409,238 @@ const Dashboard = () => {
       </Card>
 
       {selectedCustomer && (
-        <Card>
-          <CardHeader>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <CardTitle className="text-lg sm:text-xl">
-                  Monthly Spending - Customer #{selectedCustomer}
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  {selectedMonth === "all"
-                    ? `Total spending by month for ${selectedYear}`
-                    : `Spending for ${
-                        monthOptions.find((m) => m.value === selectedMonth)
-                          ?.label
-                      } ${selectedYear}`}
-                </CardDescription>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-end gap-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <CalendarClock className="size-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm text-muted-foreground">Year</span>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Card className="h-24">
+              <CardContent className="flex items-center">
+                <div className="flex items-center space-x-4 w-full">
+                  <div className="p-2 bg-primary/20 rounded-lg">
+                    <DollarSign className="size-5" />
                   </div>
-                  <Select
-                    value={selectedYear}
-                    disabled={isChartLoading}
-                    onValueChange={handleYearChange}
-                  >
-                    <SelectTrigger className="w-full sm:w-32">
-                      <SelectValue placeholder="Select year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {yearOptions.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total Cost ({currentYear})
+                    </p>
+                    <div className="text-xl font-bold">
+                      {isLoadingTotal ? (
+                        <Skeleton className="h-6 w-20" />
+                      ) : (
+                        `$${customerTotalSpent.toFixed(2)}`
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="h-24">
+              <CardContent className="flex items-center">
+                <div className="flex items-center space-x-4 w-full">
+                  <div className="p-2 bg-primary/20 rounded-lg">
+                    <Zap className="size-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total Tokens ({currentYear})
+                    </p>
+                    <div className="text-xl font-bold">1,245,678</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg sm:text-xl">
+                    Monthly Spending - Customer #{selectedCustomer}
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    {selectedMonth === "all"
+                      ? `Total spending by month for ${selectedYear}`
+                      : `Spending for ${
+                          monthOptions.find((m) => m.value === selectedMonth)
+                            ?.label
+                        } ${selectedYear}`}
+                  </CardDescription>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <CalendarDays className="size-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm text-muted-foreground">Month</span>
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-end gap-4">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <CalendarClock className="size-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm text-muted-foreground">
+                        Year
+                      </span>
+                    </div>
+                    <Select
+                      value={selectedYear}
+                      disabled={isChartLoading}
+                      onValueChange={handleYearChange}
+                    >
+                      <SelectTrigger className="w-full sm:w-32">
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {yearOptions.map((year) => (
+                          <SelectItem key={year} value={year.toString()}>
+                            {year}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Select
-                    value={selectedMonth}
-                    onValueChange={handleMonthChange}
-                    disabled={isChartLoading || originalChartData.length === 0}
-                  >
-                    <SelectTrigger className="w-full sm:w-40">
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {monthOptions.map((month) => (
-                        <SelectItem key={month.value} value={month.value}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="size-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm text-muted-foreground">
+                        Month
+                      </span>
+                    </div>
+                    <Select
+                      value={selectedMonth}
+                      onValueChange={handleMonthChange}
+                      disabled={
+                        isChartLoading || originalChartData.length === 0
+                      }
+                    >
+                      <SelectTrigger className="w-full sm:w-40">
+                        <SelectValue placeholder="Select month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthOptions.map((month) => (
+                          <SelectItem key={month.value} value={month.value}>
+                            {month.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardHeader>
+            </CardHeader>
 
-          <CardContent className="px-2 sm:px-6">
-            {isChartLoading ? (
-              <Skeleton className="h-48 sm:h-64 w-full" />
-            ) : chartError ? (
-              <div className="h-48 sm:h-64 w-full flex items-center justify-center">
-                <div className="text-center space-y-3">
-                  <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Unable to load data</p>
-                    <p className="text-xs text-muted-foreground">
-                      {chartError}
+            <CardContent className="px-2 sm:px-6">
+              {isChartLoading ? (
+                <Skeleton className="h-48 sm:h-64 w-full" />
+              ) : chartError ? (
+                <div className="h-48 sm:h-64 w-full flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Unable to load data</p>
+                      <p className="text-xs text-muted-foreground">
+                        {chartError}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : chartData.length === 0 ? (
+                <div className="h-48 sm:h-64 w-full flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      No spending data available
                     </p>
                   </div>
                 </div>
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className="h-48 sm:h-64 w-full flex items-center justify-center">
-                <div className="text-center space-y-3">
-                  <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    No spending data available
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="w-full">
-                <ChartContainer
-                  config={chartConfig}
-                  className="h-48 sm:h-64 w-full"
-                >
-                  <BarChart
-                    data={chartData}
-                    accessibilityLayer
-                    margin={{
-                      top: 10,
-                      left: 10,
-                      right: 10,
-                      bottom: 20,
-                    }}
-                  >
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      interval={0}
-                      fontSize={12}
-                      dataKey="month"
-                      tickMargin={10}
-                      tickLine={false}
-                      axisLine={false}
-                      angle={window.innerWidth >= 1024 ? 0 : -45}
-                      height={window.innerWidth >= 1024 ? 40 : 60}
-                      textAnchor={window.innerWidth >= 1024 ? "middle" : "end"}
-                    />
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent valueIcon="$" />}
-                    />
-                    <Bar
-                      radius={8}
-                      strokeWidth={2}
-                      dataKey="spending"
-                      activeBar={({ ...props }) => {
-                        return (
-                          <Rectangle
-                            {...props}
-                            fillOpacity={0.8}
-                            strokeDasharray={4}
-                            strokeDashoffset={4}
-                            stroke={props.payload.fill}
-                          />
-                        );
-                      }}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              </div>
-            )}
-          </CardContent>
-
-          <CardFooter className="flex-col items-start gap-2 text-sm px-2 sm:px-6">
-            <div className="flex gap-2 leading-none font-medium">
-              {isChartLoading ? (
-                <>
-                  <Skeleton className="h-5 w-24" />
-                  <Skeleton className="h-4 w-4" />
-                </>
-              ) : chartError || chartData.length === 0 ? (
-                <span className="text-muted-foreground">
-                  No data to display
-                </span>
               ) : (
-                <>
-                  <span className="break-words">
-                    {selectedMonth === "all"
-                      ? `Total spending: $${totalSpending.toFixed(2)}`
-                      : `${
-                          monthOptions.find((m) => m.value === selectedMonth)
-                            ?.label
-                        } spending: $${totalSpending.toFixed(2)}`}
-                  </span>
-                  <TrendingUp className="size-4 flex-shrink-0" />
-                </>
+                <div className="w-full">
+                  <ChartContainer
+                    config={chartConfig}
+                    className="h-48 sm:h-64 w-full"
+                  >
+                    <BarChart
+                      data={chartData}
+                      accessibilityLayer
+                      margin={{
+                        top: 10,
+                        left: 10,
+                        right: 10,
+                        bottom: 20,
+                      }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        interval={0}
+                        fontSize={12}
+                        dataKey="month"
+                        tickMargin={10}
+                        tickLine={false}
+                        axisLine={false}
+                        angle={window.innerWidth >= 1024 ? 0 : -45}
+                        height={window.innerWidth >= 1024 ? 40 : 60}
+                        textAnchor={
+                          window.innerWidth >= 1024 ? "middle" : "end"
+                        }
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent valueIcon="$" />}
+                      />
+                      <Bar
+                        radius={8}
+                        strokeWidth={2}
+                        dataKey="spending"
+                        activeBar={({ ...props }) => {
+                          return (
+                            <Rectangle
+                              {...props}
+                              fillOpacity={0.8}
+                              strokeDasharray={4}
+                              strokeDashoffset={4}
+                              stroke={props.payload.fill}
+                            />
+                          );
+                        }}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
               )}
-            </div>
+            </CardContent>
 
-            <div className="text-muted-foreground leading-none text-xs sm:text-sm">
-              {chartError || chartData.length === 0
-                ? "Please select a different customer or year"
-                : selectedMonth === "all"
-                ? `Showing monthly spending data for ${selectedYear}`
-                : `Showing ${
-                    monthOptions.find((m) => m.value === selectedMonth)?.label
-                  } ${selectedYear} data`}
-            </div>
-          </CardFooter>
-        </Card>
+            <CardFooter className="flex-col items-start gap-2 text-sm px-2 sm:px-6">
+              <div className="flex gap-2 leading-none font-medium">
+                {isChartLoading ? (
+                  <>
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-4 w-4" />
+                  </>
+                ) : chartError || chartData.length === 0 ? (
+                  <span className="text-muted-foreground">
+                    No data to display
+                  </span>
+                ) : (
+                  <>
+                    <span className="break-words">
+                      {selectedMonth === "all"
+                        ? `Total spending: $${totalSpending.toFixed(2)}`
+                        : `${
+                            monthOptions.find((m) => m.value === selectedMonth)
+                              ?.label
+                          } spending: $${totalSpending.toFixed(2)}`}
+                    </span>
+                    <TrendingUp className="size-4 flex-shrink-0" />
+                  </>
+                )}
+              </div>
+
+              <div className="text-muted-foreground leading-none text-xs sm:text-sm">
+                {chartError || chartData.length === 0
+                  ? "Please select a different customer or year"
+                  : selectedMonth === "all"
+                  ? `Showing monthly spending data for ${selectedYear}`
+                  : `Showing ${
+                      monthOptions.find((m) => m.value === selectedMonth)?.label
+                    } ${selectedYear} data`}
+              </div>
+            </CardFooter>
+          </Card>
+        </>
       )}
     </div>
   );
