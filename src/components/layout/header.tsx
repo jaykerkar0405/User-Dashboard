@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/auth";
@@ -154,9 +155,14 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6 md:px-16 xl:px-8">
         <Link href="/" className="flex gap-3 items-center">
-          <div className="size-9 bg-primary/40 rounded-lg flex items-center justify-center">
-            <LayoutDashboard className="size-5.5" />
-          </div>
+          <Image
+            width={0}
+            height={0}
+            alt="Icon"
+            unoptimized
+            src="/logo.png"
+            className="size-8 rounded-sm"
+          />
           <span className="text-xl font-bold">EBT Dashboard</span>
         </Link>
 
