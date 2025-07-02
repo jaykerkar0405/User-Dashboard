@@ -121,6 +121,7 @@ function ChartTooltipContent({
   hideIndicator = false,
   label,
   labelFormatter,
+  valueIcon,
   labelClassName,
   formatter,
   color,
@@ -134,6 +135,7 @@ function ChartTooltipContent({
   hideLabel?: boolean;
   hideIndicator?: boolean;
   label?: string;
+  valueIcon?: string;
   labelFormatter?: (
     value: unknown,
     payload: TooltipPayload[]
@@ -264,6 +266,7 @@ function ChartTooltipContent({
                     </div>
                     {item.value && (
                       <span className="text-foreground font-mono font-medium tabular-nums">
+                        {valueIcon}
                         {item.value.toLocaleString()}
                       </span>
                     )}
