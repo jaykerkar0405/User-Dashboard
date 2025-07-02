@@ -49,9 +49,7 @@ const LoginForm = () => {
                 <User className="size-6 text-background" />
               </div>
 
-              <h1 className="text-2xl font-bold tracking-tight">
-                Welcome
-              </h1>
+              <h1 className="text-2xl font-bold tracking-tight">Welcome</h1>
 
               <p className="text-muted-foreground text-balance">
                 Sign in to your account to continue
@@ -112,7 +110,7 @@ const LoginForm = () => {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full text-background"
+                className="w-full mt-4 text-background"
               >
                 {isLoading ? (
                   <>
