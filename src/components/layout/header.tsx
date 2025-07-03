@@ -161,10 +161,10 @@ const Header = () => {
             alt="Icon"
             unoptimized
             src="/logo.png"
-            className="size-8 rounded-sm"
+            className="size-12 rounded-sm gap-3"
           />
           <span className="text-xl">
-            <span className="font-bold">EBT</span> Dashboard
+            <span className="font-bold ">EBT</span> Dashboard
           </span>
         </Link>
 
