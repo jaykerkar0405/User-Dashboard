@@ -1,15 +1,6 @@
 "use client";
 
 import {
-  Sun,
-  User,
-  Moon,
-  Mail,
-  LogOut,
-  Shield,
-  LayoutDashboard,
-} from "lucide-react";
-import {
   DropdownMenu,
   DropdownMenuItem,
   DropdownMenuGroup,
@@ -25,6 +16,7 @@ import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/auth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sun, User, Moon, Mail, LogOut, Shield } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export type Customer = {
