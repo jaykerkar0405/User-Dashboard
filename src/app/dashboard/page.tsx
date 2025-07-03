@@ -69,7 +69,9 @@ const Dashboard = () => {
   const [isChartLoading, setIsChartLoading] = useState<boolean>(false);
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [isLoadingTotal, setIsLoadingTotal] = useState<boolean>(false);
+  const [isLoadingTokens, setIsLoadingTokens] = useState<boolean>(false);
   const [customerTotalSpent, setCustomerTotalSpent] = useState<number>(0);
+  const [customerTokenSpent, setCustomerTokenSpent] = useState<number>(0);
   const [originalChartData, setOriginalChartData] = useState<ChartData[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>(
     new Date().getFullYear().toString()
@@ -78,6 +80,18 @@ const Dashboard = () => {
   // Options for year and month selection
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  const formatTokenCount = (count: number): string => {
+    if (count >= 1_000_000_000) {
+      return (count / 1_000_000_000).toFixed(1) + "B";
+    } else if (count >= 1_000_000) {
+      return (count / 1_000_000).toFixed(1) + "M";
+    } else if (count >= 1_000) {
+      return (count / 1_000).toFixed(1) + "K";
+    } else {
+      return count.toLocaleString();
+    }
+  };
 
   const monthOptions = [
     { value: "all", label: "All Months" },
@@ -120,6 +134,41 @@ const Dashboard = () => {
       minLightness + normalizedValue * (maxLightness - minLightness);
 
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+  };
+
+  const fetchCustomerTokens = async (customerId: string) => {
+    if (!customerId) return;
+
+    setIsLoadingTokens(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/total/token/customer/${customerId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch customer tokens");
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data) && data.length >= 2 && data[0] === true) {
+        const [, tokenArray] = data;
+        if (Array.isArray(tokenArray) && tokenArray.length > 0) {
+          setCustomerTokenSpent(tokenArray[0].total_tokens || 0);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching customer tokens:", error);
+      setCustomerTokenSpent(0);
+    } finally {
+      setIsLoadingTokens(false);
+    }
   };
 
   const fetchCustomerTotal = async (customerId: string) => {
@@ -279,6 +328,7 @@ const Dashboard = () => {
     setSelectedCustomer(customerId);
     setChartError(false);
     fetchCustomerTotal(customerId);
+    fetchCustomerTokens(customerId);
     fetchCustomerSpending(customerId, selectedYear);
   };
 
@@ -419,7 +469,7 @@ const Dashboard = () => {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-muted-foreground">
-                      Total Cost ({currentYear})
+                      Total Cost
                     </p>
                     <div className="text-xl font-bold">
                       {isLoadingTotal ? (
@@ -441,9 +491,15 @@ const Dashboard = () => {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-muted-foreground">
-                      Total Tokens ({currentYear})
+                      Total Tokens
                     </p>
-                    <div className="text-xl font-bold">1,245,678</div>
+                    <div className="text-xl font-bold">
+                      {isLoadingTokens ? (
+                        <Skeleton className="h-6 w-20" />
+                      ) : (
+                        formatTokenCount(customerTokenSpent)
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
