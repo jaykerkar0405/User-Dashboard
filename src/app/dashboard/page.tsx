@@ -280,10 +280,7 @@ const Dashboard = () => {
     }
   };
 
-  const fetchCustomerSpending = async (
-    customerId: string,
-    year: string
-  ): Promise<boolean> => {
+  const fetchCustomerSpending = async (customerId: string, year: string) => {
     if (!customerId || !year) return false;
 
     setIsChartLoading(true);
