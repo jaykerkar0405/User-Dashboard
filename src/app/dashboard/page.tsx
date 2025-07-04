@@ -6,13 +6,28 @@
 
 import {
   Zap,
+  Check,
   Users,
   DollarSign,
   TrendingUp,
   AlertCircle,
   CalendarDays,
   CalendarClock,
+  ChevronsUpDown,
 } from "lucide-react";
+import {
+  Command,
+  CommandList,
+  CommandItem,
+  CommandGroup,
+  CommandInput,
+  CommandEmpty,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectItem,
@@ -35,8 +50,10 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth";
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Customer } from "@/components/layout/header";
 import { Bar, BarChart, CartesianGrid, Rectangle, XAxis } from "recharts";
@@ -60,6 +77,8 @@ const Dashboard = () => {
   const { user, userDetails } = useAuth();
 
   // State management for customer data and UI
+  const [open, setOpen] = useState<boolean>(false);
+  const [searchValue, setSearchValue] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [chartData, setChartData] = useState<ChartData[]>([]);
@@ -248,52 +267,6 @@ const Dashboard = () => {
     }
   };
 
-  const fetchCustomers = async () => {
-    setIsLoading(true);
-
-    const fetchPromise = async (): Promise<Customer[]> => {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/list/customers`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch customers");
-      }
-
-      const data = await response.json();
-
-      if (Array.isArray(data) && data.length >= 2 && data[0] === true) {
-        const [, customerArray] = data;
-        if (Array.isArray(customerArray)) {
-          return customerArray as Customer[];
-        }
-      }
-
-      throw new Error("Invalid response format");
-    };
-
-    try {
-      toast.promise(fetchPromise(), {
-        loading: "Loading customers...",
-        error: "Failed to load customers",
-        success: "Customers loaded successfully!",
-      });
-
-      const customerData = await fetchPromise();
-      setCustomers(customerData);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const fetchCustomerSpending = async (customerId: string, year: string) => {
     if (!customerId || !year) return false;
 
@@ -465,9 +438,56 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    if (user?.user_id) {
-      fetchCustomers();
-    }
+    if (!user?.user_id) return;
+
+    let isMounted = true;
+
+    const fetchCustomers = async () => {
+      setIsLoading(true);
+
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/list/customers`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch customers");
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data) && data.length >= 2 && data[0] === true) {
+          const [, customerArray] = data;
+          if (Array.isArray(customerArray) && isMounted) {
+            setCustomers(customerArray as Customer[]);
+            toast.success("Customers loaded successfully!");
+          }
+        } else {
+          throw new Error("Invalid response format");
+        }
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        if (isMounted) {
+          toast.error("Failed to load customers");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchCustomers();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user?.user_id]);
 
   return (
@@ -490,7 +510,7 @@ const Dashboard = () => {
         )}
       </div>
 
-      <Card className="mb-8">
+      <Card className="mb-7">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -515,36 +535,82 @@ const Dashboard = () => {
                 {isLoading ? (
                   <Skeleton className="h-10 w-full" />
                 ) : (
-                  <Select
-                    value={selectedCustomer}
-                    disabled={customers.length === 0}
-                    onValueChange={handleCustomerChange}
-                  >
-                    <SelectTrigger className="mt-2 w-full lg:w-1/2">
-                      <SelectValue placeholder="Choose a customer..." />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      {customers
-                        .filter((c) => c.customer_id)
-                        .sort((a, b) => a.customer_id - b.customer_id)
-                        .map((customer) => (
-                          <SelectItem
-                            key={customer.customer_id}
-                            value={customer.customer_id.toString()}
-                          >
-                            Customer #{customer.customer_id}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="w-full mt-2 max-w-md">
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          role="combobox"
+                          variant="outline"
+                          aria-expanded={open}
+                          disabled={customers.length === 0}
+                          className="w-full justify-between h-10"
+                        >
+                          {selectedCustomer
+                            ? `Customer #${selectedCustomer}`
+                            : "Choose a customer..."}
+                          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        className="w-full max-w-md p-0"
+                      >
+                        <Command className="w-md border-r">
+                          <CommandInput
+                            className="h-9"
+                            value={searchValue}
+                            onValueChange={setSearchValue}
+                            placeholder="Search customers..."
+                          />
+                          <CommandList>
+                            <CommandEmpty>No customer found.</CommandEmpty>
+                            <CommandGroup>
+                              {customers
+                                .filter(
+                                  (c) =>
+                                    c.customer_id &&
+                                    c.customer_id
+                                      .toString()
+                                      .startsWith(searchValue)
+                                )
+                                .sort((a, b) => a.customer_id - b.customer_id)
+                                .map((customer) => (
+                                  <CommandItem
+                                    key={customer.customer_id}
+                                    value={`customer-${customer.customer_id}`}
+                                    onSelect={() => {
+                                      handleCustomerChange(
+                                        customer.customer_id.toString()
+                                      );
+                                      setOpen(false);
+                                      setSearchValue("");
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedCustomer ===
+                                          customer.customer_id.toString()
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    Customer #{customer.customer_id}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 )}
               </>
             )}
 
             {!isLoading && customers.length === 0 && (
               <div className="text-center py-8 text-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <Users className="size-12 mx-auto mb-4 opacity-50" />
                 <p>No customers found</p>
               </div>
             )}
@@ -554,7 +620,7 @@ const Dashboard = () => {
 
       {selectedCustomer && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-7">
             <Card className="h-24">
               <CardContent className="flex items-center">
                 <div className="flex items-center space-x-4 w-full">
