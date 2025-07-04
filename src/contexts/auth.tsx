@@ -315,8 +315,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   ): Promise<{ success: boolean; message: string }> => {
     setIsLoading(true);
 
-    const loginPromise = async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
+    try {
+      const loginPromise = fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -325,52 +325,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           user_id: userId,
           user_password: password,
         }),
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data) && data.length >= 3) {
+          const [success, message, userData] = data;
+
+          if (success === true) {
+            const user = { user_id: userData.user_id };
+            setUser(user);
+
+            setSessionData(userData.user_id);
+            setUserToLocalStorage(user);
+            document.cookie = `auth-token=${userData.user_id}`;
+
+            const details = await fetchUserDetails(userData.user_id);
+            if (details) {
+              setUserDetails(details);
+              setUserDetailsToLocalStorage(details);
+            }
+
+            router.push("/dashboard");
+
+            return { success: true, message: message || "Login successful!" };
+          } else {
+            throw new Error(message || "Login failed");
+          }
+        } else {
+          throw new Error("Invalid response format");
+        }
       });
 
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const data = await response.json();
-
-      if (Array.isArray(data) && data.length >= 3) {
-        const [success, message, userData] = data;
-
-        if (success === true) {
-          const user = { user_id: userData.user_id };
-          setUser(user);
-
-          setSessionData(userData.user_id);
-          setUserToLocalStorage(user);
-          document.cookie = `auth-token=${userData.user_id}`;
-
-          const details = await fetchUserDetails(userData.user_id);
-          if (details) {
-            setUserDetails(details);
-            setUserDetailsToLocalStorage(details);
-          }
-
-          setTimeout(() => {
-            router.push("/dashboard");
-          }, 1000);
-
-          return { success: true, message: message || "Login successful!" };
-        } else {
-          throw new Error(message || "Login failed");
-        }
-      } else {
-        throw new Error("Invalid response format");
-      }
-    };
-
-    try {
-      toast.promise(loginPromise(), {
+      toast.promise(loginPromise, {
         loading: "Signing you in...",
         success: "Signed in successfully!",
         error: "Please enter valid credentials.",
       });
 
-      const result = await loginPromise();
+      const result = await loginPromise;
       setIsLoading(false);
       return result;
     } catch (error) {
@@ -407,7 +403,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUserDetails(null);
     clearAllStorageData();
     toast.success("Logged out successfully");
-    router.push("/");
+    window.location.href = "/";
   };
 
   const value: AuthContextType = {
