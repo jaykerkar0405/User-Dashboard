@@ -342,7 +342,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           setSessionData(userData.user_id);
           setUserToLocalStorage(user);
-          document.cookie = `auth-token=${userData.user_id}; path=/; max-age=86400; samesite=strict; secure`;
+          document.cookie = `auth-token=${userData.user_id}`;
 
           const details = await fetchUserDetails(userData.user_id);
           if (details) {
