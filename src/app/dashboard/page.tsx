@@ -77,6 +77,10 @@ const Dashboard = () => {
     new Date().getFullYear().toString()
   );
 
+  // New error states
+  const [totalError, setTotalError] = useState<string>("");
+  const [tokenError, setTokenError] = useState<string>("");
+
   // Options for year and month selection
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -136,10 +140,12 @@ const Dashboard = () => {
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   };
 
-  const fetchCustomerTokens = async (customerId: string) => {
-    if (!customerId) return;
+  const fetchCustomerTokens = async (customerId: string): Promise<boolean> => {
+    if (!customerId) return false;
 
     setIsLoadingTokens(true);
+    setTokenError("");
+
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/total/token/customer/${customerId}`,
@@ -152,7 +158,7 @@ const Dashboard = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch customer tokens");
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -161,20 +167,32 @@ const Dashboard = () => {
         const [, tokenArray] = data;
         if (Array.isArray(tokenArray) && tokenArray.length > 0) {
           setCustomerTokenSpent(tokenArray[0].total_tokens || 0);
+          return true;
         }
       }
+
+      throw new Error("Invalid response format");
     } catch (error) {
       console.error("Error fetching customer tokens:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch customer tokens";
+      setTokenError(errorMessage);
       setCustomerTokenSpent(0);
+      toast.error(`Token fetch failed: ${errorMessage}`);
+      return false;
     } finally {
       setIsLoadingTokens(false);
     }
   };
 
-  const fetchCustomerTotal = async (customerId: string) => {
-    if (!customerId) return;
+  const fetchCustomerTotal = async (customerId: string): Promise<boolean> => {
+    if (!customerId) return false;
 
     setIsLoadingTotal(true);
+    setTotalError("");
+
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/total/customer/${customerId}`,
@@ -187,7 +205,7 @@ const Dashboard = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch customer total");
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -196,11 +214,21 @@ const Dashboard = () => {
         const [, totalArray] = data;
         if (Array.isArray(totalArray) && totalArray.length > 0) {
           setCustomerTotalSpent(totalArray[0].total_spent);
+          return true;
         }
       }
+
+      throw new Error("Invalid response format");
     } catch (error) {
       console.error("Error fetching customer total:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch customer total";
+      setTotalError(errorMessage);
       setCustomerTotalSpent(0);
+      toast.error(`Total fetch failed: ${errorMessage}`);
+      return false;
     } finally {
       setIsLoadingTotal(false);
     }
@@ -252,8 +280,11 @@ const Dashboard = () => {
     }
   };
 
-  const fetchCustomerSpending = async (customerId: string, year: string) => {
-    if (!customerId || !year) return;
+  const fetchCustomerSpending = async (
+    customerId: string,
+    year: string
+  ): Promise<boolean> => {
+    if (!customerId || !year) return false;
 
     setIsChartLoading(true);
     setChartError(false);
@@ -270,7 +301,7 @@ const Dashboard = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch customer spending data");
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -308,6 +339,7 @@ const Dashboard = () => {
           setChartData(formattedData);
           setTotalSpending(total);
           setSelectedMonth("all");
+          return true;
         }
       } else {
         throw new Error("No spending data found for this customer");
@@ -318,18 +350,69 @@ const Dashboard = () => {
       setChartData([]);
       setOriginalChartData([]);
       setTotalSpending(0);
-      toast.error("Failed to load customer spending data");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to load customer spending data";
+      toast.error(`Spending data fetch failed: ${errorMessage}`);
+      return false;
     } finally {
       setIsChartLoading(false);
     }
   };
 
-  const handleCustomerChange = (customerId: string) => {
+  // Sequential API calling with proper error handling
+  const handleCustomerChange = async (customerId: string) => {
     setSelectedCustomer(customerId);
     setChartError(false);
-    fetchCustomerTotal(customerId);
-    fetchCustomerTokens(customerId);
-    fetchCustomerSpending(customerId, selectedYear);
+    setTotalError("");
+    setTokenError("");
+
+    // Reset data
+    setCustomerTotalSpent(0);
+    setCustomerTokenSpent(0);
+    setChartData([]);
+    setOriginalChartData([]);
+    setTotalSpending(0);
+
+    if (!customerId) return;
+
+    try {
+      // Step 1: Fetch customer total
+      const totalSuccess = await fetchCustomerTotal(customerId);
+
+      if (!totalSuccess) {
+        toast.error(
+          "Failed to fetch customer total. Stopping further requests."
+        );
+        return;
+      }
+
+      // Step 2: Fetch customer tokens (only if total was successful)
+      const tokenSuccess = await fetchCustomerTokens(customerId);
+
+      if (!tokenSuccess) {
+        toast.error("Failed to fetch customer tokens. Stopping chart request.");
+        return;
+      }
+
+      // Step 3: Fetch customer spending chart data (only if tokens were successful)
+      const spendingSuccess = await fetchCustomerSpending(
+        customerId,
+        selectedYear
+      );
+
+      if (!spendingSuccess) {
+        toast.error("Failed to fetch customer spending data.");
+        return;
+      }
+
+      // All requests successful
+      toast.success("Customer data loaded successfully!");
+    } catch (error) {
+      console.error("Error in sequential API calls:", error);
+      toast.error("An unexpected error occurred while loading customer data.");
+    }
   };
 
   const handleYearChange = (year: string) => {
@@ -474,6 +557,10 @@ const Dashboard = () => {
                     <div className="text-xl font-bold">
                       {isLoadingTotal ? (
                         <Skeleton className="h-6 w-20" />
+                      ) : totalError ? (
+                        <span className="text-destructive text-sm">
+                          Error loading
+                        </span>
                       ) : (
                         `$${customerTotalSpent.toFixed(2)}`
                       )}
@@ -496,6 +583,10 @@ const Dashboard = () => {
                     <div className="text-xl font-bold">
                       {isLoadingTokens ? (
                         <Skeleton className="h-6 w-20" />
+                      ) : tokenError ? (
+                        <span className="text-destructive text-sm">
+                          Error loading
+                        </span>
                       ) : (
                         formatTokenCount(customerTokenSpent)
                       )}
@@ -589,7 +680,7 @@ const Dashboard = () => {
                     <div className="space-y-1">
                       <p className="text-sm font-medium">Unable to load data</p>
                       <p className="text-xs text-muted-foreground">
-                        {chartError}
+                        Please try selecting a different customer or year
                       </p>
                     </div>
                   </div>
