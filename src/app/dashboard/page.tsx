@@ -165,8 +165,15 @@ const Dashboard = () => {
 
       if (Array.isArray(data) && data.length >= 2 && data[0] === true) {
         const [, tokenArray] = data;
+
         if (Array.isArray(tokenArray) && tokenArray.length > 0) {
-          setCustomerTokenSpent(tokenArray[0].total_tokens || 0);
+          const tokens = tokenArray[0].total_tokens;
+
+          if (tokens == null) {
+            toast("Token value is missing. Defaulting to 0.");
+          }
+
+          setCustomerTokenSpent(tokens ?? 0);
           return true;
         }
       }
@@ -212,8 +219,15 @@ const Dashboard = () => {
 
       if (Array.isArray(data) && data.length >= 2 && data[0] === true) {
         const [, totalArray] = data;
+
         if (Array.isArray(totalArray) && totalArray.length > 0) {
-          setCustomerTotalSpent(totalArray[0].total_spent);
+          const totalSpent = totalArray[0].total_spent;
+
+          if (totalSpent == null) {
+            toast("Total spent value is missing. Defaulting to 0.");
+          }
+
+          setCustomerTotalSpent(totalSpent ?? 0);
           return true;
         }
       }
